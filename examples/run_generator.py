@@ -8,11 +8,13 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from pytorch_transformers import GPT2Config, OpenAIGPTConfig, XLNetConfig
+from pytorch_transformers import GPT2Config, OpenAIGPTConfig, XLNetConfig, TransfoXLConfig
 
 from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
 from pytorch_transformers import OpenAIGPTLMHeadModel, OpenAIGPTTokenizer
 from pytorch_transformers import XLNetLMHeadModel, XLNetTokenizer
+from pytorch_transformers import TransfoXLLMHeadModel, TransfoXLTokenizer
+
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -25,6 +27,7 @@ MODEL_CLASSES = {
     'gpt2': (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     'gpt': (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     'xlnet': (XLNetConfig, XLNetLMHeadModel, XLNetTokenizer),
+    'transfoxl': (TransfoXLConfig, TransfoXLLMHeadModel, TransfoXLTokenizer),
 }
 
 def top_k_logits(logits, k):
@@ -51,7 +54,7 @@ def sample_sequence(model, length, model_class, start_token=None, batch_size=Non
     output = context
     past = None
     with torch.no_grad():
-        for i in trange(length):
+        for _ in trange(length):
             if model_class == "gpt2":
                 logits, past = model(prev, past=past)
             else:
@@ -79,7 +82,6 @@ def run_model():
     parser.add_argument("--length", type=int, default=-1)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_k", type=int, default=0)
-    parser.add_argument('--unconditional', action='store_true', help='If true, unconditional generation.')
     args = parser.parse_args()
     print(args)
 
@@ -106,53 +108,42 @@ def run_model():
     model.eval()
 
     if args.length == -1:
-        args.length = model.config.max_position_embeddings if args.model_type == "xlnet" else model.config.n_ctx // 2
-    elif args.length > model.config.n_ctx:
+        if args.model_type == "xlnet":
+            args.length = model.config.max_position_embeddings
+        elif args.model_type == "transfoxl":
+            args.length = model.config.tgt_len
+        else:
+            args.length = model.config.n_ctx // 2
+    elif args.model_type == "xlnet" and args.length > model.config.max_position_embeddings or \
+            args.model_type == "transfoxl" and args.length > model.config.tgt_len or \
+            args.model_type == "gpt" and args.length > model.config.n_ctx or \
+            args.model_type == "gpt2" and args.length > model.config.n_ctx:
         raise ValueError("Can't get samples longer than window size: %s" % model.config.n_ctx)
 
     while True:
-        context_tokens = []
-        if not args.unconditional:
+        raw_text = input("Model prompt >>> ")
+        while not raw_text:
+            print('Prompt should not be empty!')
             raw_text = input("Model prompt >>> ")
-            while not raw_text:
-                print('Prompt should not be empty!')
-                raw_text = input("Model prompt >>> ")
-            context_tokens = enc.encode(raw_text)
-            generated = 0
-            for _ in range(args.nsamples // args.batch_size):
-                out = sample_sequence(
-                    model=model, length=args.length,
-                    model_class=args.model_type,
-                    context=context_tokens,
-                    start_token=None,
-                    batch_size=args.batch_size,
-                    temperature=args.temperature, top_k=args.top_k, device=device
-                )
-                out = out[:, len(context_tokens):].tolist()
-                for i in range(args.batch_size):
-                    generated += 1
-                    text = enc.decode(out[i])
-                    print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
-                    print(text)
-            print("=" * 80)
-        else:
-            generated = 0
-            for _ in range(args.nsamples // args.batch_size):
-                out = sample_sequence(
-                    model=model, length=args.length,
-                    model_class=args.model_type,
-                    context=None,
-                    start_token=enc.encoder['<|endoftext|>'],
-                    batch_size=args.batch_size,
-                    temperature=args.temperature, top_k=args.top_k, device=device
-                )
-                out = out[:,1:].tolist()
-                for i in range(args.batch_size):
-                    generated += 1
-                    text = enc.decode(out[i])
-                    print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
-                    print(text)
-            print("=" * 80)
+        context_tokens = enc.encode(raw_text)
+        generated = 0
+        for _ in range(args.nsamples // args.batch_size):
+            out = sample_sequence(
+                model=model, length=args.length,
+                model_class=args.model_type,
+                context=context_tokens,
+                start_token=None,
+                batch_size=args.batch_size,
+                temperature=args.temperature, top_k=args.top_k, device=device
+            )
+            out = out[:, len(context_tokens):].tolist()
+            for i in range(args.batch_size):
+                generated += 1
+                text = enc.decode(out[i])
+                print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
+                print(text)
+        print("=" * 80)
+
 
 if __name__ == '__main__':
     run_model()
