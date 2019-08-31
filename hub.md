@@ -38,7 +38,7 @@ The components available here are based on the `AutoModel` and `AutoTokenizer` c
 Unlike most other PyTorch Hub models, BERT requires a few additional Python packages to be installed.
 
 ```bash
-pip install tqdm boto3 requests regex
+pip install tqdm boto3 requests regex sentencepiece sacremoses
 ```
 
 # Usage
@@ -48,8 +48,8 @@ The available methods are the following:
 - `tokenizer`: returns a tokenizer corresponding to the specified model or path
 - `model`: returns a model corresponding to the specified model or path
 - `modelWithLMHead`: returns a model with a language modeling head corresponding to the specified model or path
-- `modelForSequenceClassification`: returns a model with a sequence classifire corresponding to the specified model or path
-- `modelForQuestionAnswering`: returns a model with  a question answering head correspondiing to the specified model or path
+- `modelForSequenceClassification`: returns a model with a sequence classifier corresponding to the specified model or path
+- `modelForQuestionAnswering`: returns a model with  a question answering head corresponding to the specified model or path
 
 All these methods share the following argument: `pretrained_model_or_path`, which is a string identifying a pre-trained model or path from which an instance will be returned. There are several checkpoints available for each model, which are detailed below:
 
@@ -62,21 +62,6 @@ The available models are listed on the [pytorch-transformers documentation, pre-
 
 Here are a few examples detailing the usage of each available method.
 
-## Configuration
-
-The configuration object holds information concerning the model, such as the number of heads/layers, if the model should output attentions or hidden states, or if it should be adapted for TorchScript. The complete documentation can be found [here](https://huggingface.co/pytorch-transformers/main_classes/configuration.html).
-
-```py
-import torch
-config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased')  # Download configuration from S3 and cache.
-config = torch.hub.load('huggingface/pytorch-transformers', 'config', './test/bert_saved_model/')  # E.g. config (or model) was saved using `save_pretrained('./test/saved_model/')`
-config = torch.hub.load('huggingface/pytorch-transformers', 'config', './test/bert_saved_model/my_configuration.json')
-config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased', output_attention=True, foo=False)
-assert config.output_attention == True
-config, unused_kwargs = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased', output_attention=True, foo=False, return_unused_kwargs=True)
-assert config.output_attention == True
-assert unused_kwargs == {'foo': False}
-```
 
 ## Tokenizer
 
@@ -90,7 +75,7 @@ tokenizer = torch.hub.load('huggingface/pytorch-transformers', 'tokenizer', './t
 
 ## Models
 
-The model object is a model instance inheriting from a `nn.Module`. Each model is accompanied by their saving/loading methodss, either from a local file or directory, or from a pretrained configuration (see previously described `config`). Each model works differently, a complete overview of the different models can be found in the [documentation](https://huggingface.co/pytorch-transformers/pretrained_models.html).
+The model object is a model instance inheriting from a `nn.Module`. Each model is accompanied by their saving/loading methods, either from a local file or directory, or from a pre-trained configuration (see previously described `config`). Each model works differently, a complete overview of the different models can be found in the [documentation](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
 ```py
 import torch
@@ -146,6 +131,29 @@ assert model.config.output_attention == True
 # Loading from a TF checkpoint file instead of a PyTorch model (slower)
 config = AutoConfig.from_json_file('./tf_model/bert_tf_model_config.json')
 model = torch.hub.load('huggingface/pytorch-transformers', 'modelForQuestionAnswering', './tf_model/bert_tf_checkpoint.ckpt.index', from_tf=True, config=config)
+```
+
+## Configuration
+
+The configuration is optional. The configuration object holds information concerning the model, such as the number of heads/layers, if the model should output attentions or hidden states, or if it should be adapted for TorchScript. The complete documentation can be found [here](https://huggingface.co/pytorch-transformers/main_classes/configuration.html).
+
+```py
+import torch
+config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased')  # Download configuration from S3 and cache.
+config = torch.hub.load('huggingface/pytorch-transformers', 'config', './test/bert_saved_model/')  # E.g. config (or model) was saved using `save_pretrained('./test/saved_model/')`
+config = torch.hub.load('huggingface/pytorch-transformers', 'config', './test/bert_saved_model/my_configuration.json')
+config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased', output_attention=True, foo=False)
+assert config.output_attention == True
+config, unused_kwargs = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased', output_attention=True, foo=False, return_unused_kwargs=True)
+assert config.output_attention == True
+assert unused_kwargs == {'foo': False}
+
+# Using the configuration with a model
+config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased')
+config.output_attentions = True
+model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-uncased', config=config)    # Download model and configuration from S3 and cache.
+
+
 ```
 
 # Example Usage
