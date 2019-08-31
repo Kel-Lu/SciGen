@@ -64,6 +64,8 @@ Here are a few examples detailing the usage of each available method.
 
 ## Configuration
 
+The configuration object holds information concerning the model, such as the number of heads/layers, if the model should output attentions or hidden states, or if it should be adapted for TorchScript. The complete documentation can be found [here](https://huggingface.co/pytorch-transformers/main_classes/configuration.html).
+
 ```py
 import torch
 config = torch.hub.load('huggingface/pytorch-transformers', 'config', 'bert-base-uncased')  # Download configuration from S3 and cache.
@@ -78,6 +80,8 @@ assert unused_kwargs == {'foo': False}
 
 ## Tokenizer
 
+The tokenizer object allows the conversion from character strings to tokens understood by the different models. Each model has its own tokenizer, and some tokenizing methods are different across tokenizers. The complete documentation can be found [here](https://huggingface.co/pytorch-transformers/main_classes/tokenizer.html).
+
 ```py
 import torch
 tokenizer = torch.hub.load('huggingface/pytorch-transformers', 'tokenizer', 'bert-base-uncased')    # Download vocabulary from S3 and cache.
@@ -85,6 +89,8 @@ tokenizer = torch.hub.load('huggingface/pytorch-transformers', 'tokenizer', './t
 ```
 
 ## Models
+
+The model object is a model instance inheriting from a `nn.Module`. Each model is accompanied by their saving/loading methodss, either from a local file or directory, or from a pretrained configuration (see previously described `config`). Each model works differently, a complete overview of the different models can be found in the [documentation](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
 ```py
 import torch
@@ -99,6 +105,8 @@ model = torch.hub.load('huggingface/pytorch-transformers', 'model', './tf_model/
 
 ## Models with a language modeling head
 
+Previously mentioned `model` instance with an additional language modeling head.
+
 ```py
 import torch
 model = torch.hub.load('huggingface/pytorch-transformers', 'modelWithLMHead', 'bert-base-uncased')    # Download model and configuration from S3 and cache.
@@ -112,6 +120,8 @@ model = torch.hub.load('huggingface/pytorch-transformers', 'modelWithLMHead', '.
 
 ## Models with a sequence classification head
 
+Previously mentioned `model` instance  with an additional sequence classification head.
+
 ```py
 import torch
 model = torch.hub.load('huggingface/pytorch-transformers', 'modelForSequenceClassification', 'bert-base-uncased')    # Download model and configuration from S3 and cache.
@@ -124,6 +134,8 @@ model = torch.hub.load('huggingface/pytorch-transformers', 'modelForSequenceClas
 ```
 
 ## Models with a question answering head
+
+Previously mentioned `model` instance  with an additional question answering head.
 
 ```py
 import torch
