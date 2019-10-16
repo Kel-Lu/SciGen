@@ -36,6 +36,12 @@ To create the package for pypi.
 from io import open
 from setuptools import find_packages, setup
 
+
+extras = {
+    'serving': ['uvicorn', 'fastapi']
+}
+extras['all'] = [package for package in extras.values()]
+
 setup(
     name="transformers",
     version="2.1.1",
@@ -56,6 +62,10 @@ setup(
                       'regex',
                       'sentencepiece',
                       'sacremoses'],
+    extras_require=extras,
+    scripts=[
+        'transformers-cli'
+    ],
     entry_points={
       'console_scripts': [
         "transformers=transformers.__main__:main",
