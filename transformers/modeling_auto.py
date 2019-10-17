@@ -18,6 +18,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import logging
 
+from .configuration_auto import (BertConfig, CTRLConfig, DistilBertConfig,
+                                 GPT2Config, OpenAIGPTConfig, RobertaConfig,
+                                 TransfoXLConfig, XLMConfig, XLNetConfig)
+
 from .modeling_bert import BertModel, BertForMaskedLM, BertForSequenceClassification, BertForQuestionAnswering
 from .modeling_openai import OpenAIGPTModel, OpenAIGPTLMHeadModel
 from .modeling_gpt2 import GPT2Model, GPT2LMHeadModel
@@ -40,7 +44,7 @@ class AutoModel(object):
         :class:`~transformers.AutoModel` is a generic model class
         that will be instantiated as one of the base model classes of the library
         when created with the `AutoModel.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+        or the `AutoModel.from_config(config)` class methods.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
         using pattern matching on the `pretrained_model_name_or_path` string.
@@ -61,7 +65,50 @@ class AutoModel(object):
     """
     def __init__(self):
         raise EnvironmentError("AutoModel is designed to be instantiated "
-            "using the `AutoModel.from_pretrained(pretrained_model_name_or_path)` method.")
+            "using the `AutoModel.from_pretrained(pretrained_model_name_or_path)` or "
+            "`AutoModel.from_config(config)` methods.")
+
+    @classmethod
+    def from_config(cls, config):
+        r""" Instantiates one of the base model classes of the library
+        from a configuration.
+
+            config: (`optional`) instance of a class derived from :class:`~transformers.PretrainedConfig`:
+                The model class to instantiate is selected based on the configuration class:
+                    - isInstance of `distilbert` configuration class: DistilBertModel (DistilBERT model)
+                    - isInstance of `roberta` configuration class: RobertaModel (RoBERTa model)
+                    - isInstance of `bert` configuration class: BertModel (Bert model)
+                    - isInstance of `openai-gpt` configuration class: OpenAIGPTModel (OpenAI GPT model)
+                    - isInstance of `gpt2` configuration class: GPT2Model (OpenAI GPT-2 model)
+                    - isInstance of `ctrl` configuration class: CTRLModel (Salesforce CTRL  model)
+                    - isInstance of `transfo-xl` configuration class: TransfoXLModel (Transformer-XL model)
+                    - isInstance of `xlnet` configuration class: XLNetModel (XLNet model)
+                    - isInstance of `xlm` configuration class: XLMModel (XLM model)
+
+        Examples::
+
+            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            model = AutoModel.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+        """
+        if isinstance(config, DistilBertConfig):
+            return DistilBertModel(config)
+        elif isinstance(config, RobertaConfig):
+            return RobertaModel(config)
+        elif isinstance(config, BertConfig):
+            return BertModel(config)
+        elif isinstance(config, OpenAIGPTConfig):
+            return OpenAIGPTModel(config)
+        elif isinstance(config, GPT2Config):
+            return GPT2Model(config)
+        elif isinstance(config, TransfoXLConfig):
+            return TransfoXLModel(config)
+        elif isinstance(config, XLNetConfig):
+            return XLNetModel(config)
+        elif isinstance(config, XLMConfig):
+            return XLMModel(config)
+        elif isinstance(config, CTRLConfig):
+            return CTRLModel(config)
+        raise ValueError("Unrecognized configuration class {}".format(config))
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
@@ -155,7 +202,7 @@ class AutoModel(object):
         elif 'ctrl' in pretrained_model_name_or_path:
             return CTRLModel.from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
         raise ValueError("Unrecognized model identifier in {}. Should contains one of "
-                         "'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
+                         "'distilbert', 'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
                          "'xlm', 'roberta, 'ctrl'".format(pretrained_model_name_or_path))
 
 
@@ -185,7 +232,50 @@ class AutoModelWithLMHead(object):
     """
     def __init__(self):
         raise EnvironmentError("AutoModelWithLMHead is designed to be instantiated "
-            "using the `AutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)` method.")
+            "using the `AutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)` or "
+            "`AutoModelWithLMHead.from_config(config)` methods.")
+
+    @classmethod
+    def from_config(cls, config):
+        r""" Instantiates one of the base model classes of the library
+        from a configuration.
+
+            config: (`optional`) instance of a class derived from :class:`~transformers.PretrainedConfig`:
+                The model class to instantiate is selected based on the configuration class:
+                    - isInstance of `distilbert` configuration class: DistilBertModel (DistilBERT model)
+                    - isInstance of `roberta` configuration class: RobertaModel (RoBERTa model)
+                    - isInstance of `bert` configuration class: BertModel (Bert model)
+                    - isInstance of `openai-gpt` configuration class: OpenAIGPTModel (OpenAI GPT model)
+                    - isInstance of `gpt2` configuration class: GPT2Model (OpenAI GPT-2 model)
+                    - isInstance of `ctrl` configuration class: CTRLModel (Salesforce CTRL  model)
+                    - isInstance of `transfo-xl` configuration class: TransfoXLModel (Transformer-XL model)
+                    - isInstance of `xlnet` configuration class: XLNetModel (XLNet model)
+                    - isInstance of `xlm` configuration class: XLMModel (XLM model)
+
+        Examples::
+
+            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            model = AutoModelWithLMHead.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+        """
+        if isinstance(config, DistilBertConfig):
+            return DistilBertForMaskedLM(config)
+        elif isinstance(config, RobertaConfig):
+            return RobertaForMaskedLM(config)
+        elif isinstance(config, BertConfig):
+            return BertForMaskedLM(config)
+        elif isinstance(config, OpenAIGPTConfig):
+            return OpenAIGPTLMHeadModel(config)
+        elif isinstance(config, GPT2Config):
+            return GPT2LMHeadModel(config)
+        elif isinstance(config, TransfoXLConfig):
+            return TransfoXLLMHeadModel(config)
+        elif isinstance(config, XLNetConfig):
+            return XLNetLMHeadModel(config)
+        elif isinstance(config, XLMConfig):
+            return XLMWithLMHeadModel(config)
+        elif isinstance(config, CTRLConfig):
+            return CTRLLMHeadModel(config)
+        raise ValueError("Unrecognized configuration class {}".format(config))
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
@@ -281,7 +371,7 @@ class AutoModelWithLMHead(object):
         elif 'ctrl' in pretrained_model_name_or_path:
             return CTRLLMHeadModel.from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
         raise ValueError("Unrecognized model identifier in {}. Should contains one of "
-                         "'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
+                         "'distilbert', 'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
                          "'xlm', 'roberta','ctrl'".format(pretrained_model_name_or_path))
 
 
@@ -306,8 +396,39 @@ class AutoModelForSequenceClassification(object):
         This class cannot be instantiated using `__init__()` (throws an error).
     """
     def __init__(self):
-        raise EnvironmentError("AutoModelWithLMHead is designed to be instantiated "
-            "using the `AutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)` method.")
+        raise EnvironmentError("AutoModelForSequenceClassification is designed to be instantiated "
+            "using the `AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path)` or "
+            "`AutoModelForSequenceClassification.from_config(config)` methods.")
+
+    @classmethod
+    def from_config(cls, config):
+        r""" Instantiates one of the base model classes of the library
+        from a configuration.
+
+            config: (`optional`) instance of a class derived from :class:`~transformers.PretrainedConfig`:
+                The model class to instantiate is selected based on the configuration class:
+                    - isInstance of `distilbert` configuration class: DistilBertModel (DistilBERT model)
+                    - isInstance of `roberta` configuration class: RobertaModel (RoBERTa model)
+                    - isInstance of `bert` configuration class: BertModel (Bert model)
+                    - isInstance of `xlnet` configuration class: XLNetModel (XLNet model)
+                    - isInstance of `xlm` configuration class: XLMModel (XLM model)
+
+        Examples::
+
+            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            model = AutoModelForSequenceClassification.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+        """
+        if isinstance(config, DistilBertConfig):
+            return DistilBertForSequenceClassification(config)
+        elif isinstance(config, RobertaConfig):
+            return RobertaForSequenceClassification(config)
+        elif isinstance(config, BertConfig):
+            return BertForSequenceClassification(config)
+        elif isinstance(config, XLNetConfig):
+            return XLNetForSequenceClassification(config)
+        elif isinstance(config, XLMConfig):
+            return XLMForSequenceClassification(config)
+        raise ValueError("Unrecognized configuration class {}".format(config))
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
@@ -393,7 +514,7 @@ class AutoModelForSequenceClassification(object):
             return XLMForSequenceClassification.from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
 
         raise ValueError("Unrecognized model identifier in {}. Should contains one of "
-                         "'bert', 'xlnet', 'xlm', 'roberta'".format(pretrained_model_name_or_path))
+                         "'distilbert', 'bert', 'xlnet', 'xlm', 'roberta'".format(pretrained_model_name_or_path))
 
 
 class AutoModelForQuestionAnswering(object):
@@ -416,8 +537,36 @@ class AutoModelForQuestionAnswering(object):
         This class cannot be instantiated using `__init__()` (throws an error).
     """
     def __init__(self):
-        raise EnvironmentError("AutoModelWithLMHead is designed to be instantiated "
-            "using the `AutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)` method.")
+        raise EnvironmentError("AutoModelForQuestionAnswering is designed to be instantiated "
+            "using the `AutoModelForQuestionAnswering.from_pretrained(pretrained_model_name_or_path)` or "
+            "`AutoModelForQuestionAnswering.from_config(config)` methods.")
+
+    @classmethod
+    def from_config(cls, config):
+        r""" Instantiates one of the base model classes of the library
+        from a configuration.
+
+            config: (`optional`) instance of a class derived from :class:`~transformers.PretrainedConfig`:
+                The model class to instantiate is selected based on the configuration class:
+                    - isInstance of `distilbert` configuration class: DistilBertModel (DistilBERT model)
+                    - isInstance of `bert` configuration class: BertModel (Bert model)
+                    - isInstance of `xlnet` configuration class: XLNetModel (XLNet model)
+                    - isInstance of `xlm` configuration class: XLMModel (XLM model)
+
+        Examples::
+
+            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            model = AutoModelForSequenceClassification.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+        """
+        if isinstance(config, DistilBertConfig):
+            return DistilBertForQuestionAnswering(config)
+        elif isinstance(config, BertConfig):
+            return BertForQuestionAnswering(config)
+        elif isinstance(config, XLNetConfig):
+            return XLNetForQuestionAnswering(config)
+        elif isinstance(config, XLMConfig):
+            return XLMForQuestionAnswering(config)
+        raise ValueError("Unrecognized configuration class {}".format(config))
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
@@ -500,4 +649,4 @@ class AutoModelForQuestionAnswering(object):
             return XLMForQuestionAnswering.from_pretrained(pretrained_model_name_or_path, *model_args, **kwargs)
 
         raise ValueError("Unrecognized model identifier in {}. Should contains one of "
-                         "'bert', 'xlnet', 'xlm'".format(pretrained_model_name_or_path))
+                         "'distilbert', 'bert', 'xlnet', 'xlm'".format(pretrained_model_name_or_path))

@@ -58,6 +58,30 @@ class AutoConfig(object):
             "using the `AutoConfig.from_pretrained(pretrained_model_name_or_path)` method.")
 
     @classmethod
+    def for_model(cls, model_type, *args, **kwargs):
+        if 'distilbert' in model_type:
+            return DistilBertConfig(*args, **kwargs)
+        elif 'roberta' in model_type:
+            return RobertaConfig(*args, **kwargs)
+        elif 'bert' in model_type:
+            return BertConfig(*args, **kwargs)
+        elif 'openai-gpt' in model_type:
+            return OpenAIGPTConfig(*args, **kwargs)
+        elif 'gpt2' in model_type:
+            return GPT2Config(*args, **kwargs)
+        elif 'transfo-xl' in model_type:
+            return TransfoXLConfig(*args, **kwargs)
+        elif 'xlnet' in model_type:
+            return XLNetConfig(*args, **kwargs)
+        elif 'xlm' in model_type:
+            return XLMConfig(*args, **kwargs)
+        elif 'ctrl' in model_type:
+            return CTRLConfig(*args, **kwargs)
+        raise ValueError("Unrecognized model identifier in {}. Should contains one of "
+                         "'distilbert', 'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
+                         "'xlm', 'roberta', 'ctrl'".format(model_type))
+
+    @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
         r""" Instantiate a one of the configuration classes of the library
         from a pre-trained model configuration.
@@ -133,5 +157,5 @@ class AutoConfig(object):
         elif 'ctrl' in pretrained_model_name_or_path:
             return CTRLConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
         raise ValueError("Unrecognized model identifier in {}. Should contains one of "
-                         "'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
+                         "'distilbert', 'bert', 'openai-gpt', 'gpt2', 'transfo-xl', 'xlnet', "
                          "'xlm', 'roberta', 'ctrl'".format(pretrained_model_name_or_path))
