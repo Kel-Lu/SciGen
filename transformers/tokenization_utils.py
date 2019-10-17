@@ -794,6 +794,64 @@ class PreTrainedTokenizer(object):
                                       truncation_strategy=truncation_strategy,
                                       return_tensors=return_tensors)
 
+    def batch_encode_plus(self,
+                          batch_text_or_text_pairs=None,
+                          add_special_tokens=False,
+                          max_length=None,
+                          stride=0,
+                          truncation_strategy='longest_first',
+                          return_tensors=None,
+                          **kwargs):
+        """
+        Returns a dictionary containing the encoded sequence or sequence pair and additional informations:
+        the mask for sequence classification and the overflowing elements if a ``max_length`` is specified.
+
+        Args:
+            batch_text_or_text_pairs: Batch of sequences or pair of sequences to be encoded.
+                This can be a list of string/string-sequences/int-sequences or a list of pair of
+                string/string-sequences/int-sequence (see details in encode_plus)
+            add_special_tokens: if set to ``True``, the sequences will be encoded with the special tokens relative
+                to their model.
+            max_length: if set to a number, will limit the total sequence returned so that it has a maximum length.
+                If there are overflowing tokens, those will be added to the returned dictionary
+            stride: if set to a number along with max_length, the overflowing tokens returned will contain some tokens
+                from the main sequence returned. The value of this argument defines the number of additional tokens.
+            truncation_strategy: string selected in the following options:
+                - 'longest_first' (default) Iteratively reduce the inputs sequence until the input is under max_length
+                    starting from the longest one at each token (when there is a pair of input sequences)
+                - 'only_first': Only truncate the first sequence
+                - 'only_second': Only truncate the second sequence
+                - 'do_not_truncate': Does not truncate (raise an error if the input sequence is longer than max_length)
+            return_tensors: (optional) can be set to 'tf' or 'pt' to return respectively TensorFlow tf.constant
+                or PyTorch torch.Tensor instead of a list of python integers.
+            **kwargs: passed to the `self.tokenize()` method
+        """
+        batch_outputs = {}
+        for ids_or_pair_ids in batch_ids_or_pair_ids:
+            if isinstance(ids_or_pair_ids, (list, tuple)):
+                assert len(ids_or_pair_ids) == 2
+                ids, pair_ids = ids_or_pair_ids
+            else:
+                ids, pair_ids = ids_or_pair_ids, None
+            outputs = self.encode_plus(ids, pair_ids, add_special_tokens=add_special_tokens, max_length=max_length,
+                                       stride=stride, truncation_strategy=truncation_strategy, return_tensors=None)
+            for key, value in outputs.items():
+                batch_outputs[key] = (batch_outputs[key] if key in batch_outputs else []).append(value)
+
+        if return_tensors is None:
+            return batch_outputs
+
+        # Do the tensor conversion in batch
+        for key, value in batch_outputs.items():
+            if return_tensors == 'tf' and is_tf_available():
+                batch_outputs[key] = tf.constant(value)
+            elif return_tensors == 'pt' and is_torch_available():
+                batch_outputs[key] = torch.tensor(value)
+            elif return_tensors is not None:
+                logger.warning("Unable to convert output to tensors format {}, PyTorch or TensorFlow is not available.".format(return_tensors))
+
+        return batch_outputs
+
     def prepare_for_model(self, ids, pair_ids=None, max_length=None, add_special_tokens=False, stride=0,
                           truncation_strategy='longest_first', return_tensors=None):
         """
@@ -878,6 +936,75 @@ class PreTrainedTokenizer(object):
             encoded_inputs["special_tokens_mask"] = encoded_inputs["special_tokens_mask"][:max_length]
 
         return encoded_inputs
+
+    def batch_prepare_for_model(self, batch_ids_or_pair_ids, max_length=None, add_special_tokens=False, stride=0,
+                                truncation_strategy='longest_first', return_tensors=None):
+        """
+        Prepares a batch of sequences of input id, or a batch of pairs of sequences of inputs ids so that it can be used by the model.
+        It adds special tokens, truncates sequences if overflowing while taking into account the special tokens and manages a window stride for
+        overflowing tokens.
+
+        Args:
+            ids: list of tokenized input ids. Can be obtained from a string by chaining the
+                `tokenize` and `convert_tokens_to_ids` methods.
+            pair_ids: Optional second list of input ids. Can be obtained from a string by chaining the
+                `tokenize` and `convert_tokens_to_ids` methods.
+            max_length: maximum length of the returned list. Will truncate by taking into account the special tokens.
+            add_special_tokens: if set to ``True``, the sequences will be encoded with the special tokens relative
+                to their model.
+            stride: window stride for overflowing tokens. Can be useful for edge effect removal when using sequential
+                list of inputs.
+            truncation_strategy: string selected in the following options:
+                - 'longest_first' (default) Iteratively reduce the inputs sequence until the input is under max_length
+                    starting from the longest one at each token (when there is a pair of input sequences)
+                - 'only_first': Only truncate the first sequence
+                - 'only_second': Only truncate the second sequence
+                - 'do_not_truncate': Does not truncate (raise an error if the input sequence is longer than max_length)
+            return_tensors: (optional) can be set to 'tf' or 'pt' to return respectively TensorFlow tf.constant
+                or PyTorch torch.Tensor instead of a list of python integers.
+
+        Return:
+            A Dictionary of shape::
+
+                {
+                    input_ids: list[int],
+                    overflowing_tokens: list[int] if a ``max_length`` is specified, else None
+                    special_tokens_mask: list[int] if ``add_special_tokens`` if set to ``True``
+                }
+
+            With the fields:
+                ``input_ids``: list of tokens to be fed to a model
+
+                ``overflowing_tokens``: list of overflowing tokens if a max length is specified.
+
+                ``special_tokens_mask``: if adding special tokens, this is a list of [0, 1], with 0 specifying special added
+                tokens and 1 specifying sequence tokens.
+        """
+        batch_outputs = {}
+        for ids_or_pair_ids in batch_ids_or_pair_ids:
+            if isinstance(ids_or_pair_ids, (list, tuple)):
+                assert len(ids_or_pair_ids) == 2
+                ids, pair_ids = ids_or_pair_ids
+            else:
+                ids, pair_ids = ids_or_pair_ids, None
+            outputs = self.prepare_for_model(ids, pair_ids, max_length=max_length, add_special_tokens=add_special_tokens,
+                                             stride=stride, truncation_strategy=truncation_strategy, return_tensors=None)
+            for key, value in outputs.items():
+                batch_outputs[key] = (batch_outputs[key] if key in batch_outputs else []).append(value)
+
+        if return_tensors is None:
+            return batch_outputs
+
+        # Do the tensor conversion in batch
+        for key, value in batch_outputs.items():
+            if return_tensors == 'tf' and is_tf_available():
+                batch_outputs[key] = tf.constant(value)
+            elif return_tensors == 'pt' and is_torch_available():
+                batch_outputs[key] = torch.tensor(value)
+            elif return_tensors is not None:
+                logger.warning("Unable to convert output to tensors format {}, PyTorch or TensorFlow is not available.".format(return_tensors))
+
+        return batch_outputs
 
     def truncate_sequences(self, ids, pair_ids=None, num_tokens_to_remove=0, truncation_strategy='longest_first', stride=0):
         """Truncates a sequence pair in place to the maximum length.
