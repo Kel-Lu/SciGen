@@ -1,7 +1,6 @@
 from .processors import (InputExample, InputFeatures, DataProcessor,
                          SingleSentenceClassificationProcessor)
-from .processors import (convert_examples_to_features,
-                         glue_output_modes, glue_processors, glue_tasks_num_labels,
+from .processors import (glue_output_modes, glue_processors, glue_tasks_num_labels,
                          glue_convert_examples_to_features)
 
 from .metrics import is_sklearn_available
