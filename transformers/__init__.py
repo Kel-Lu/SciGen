@@ -97,7 +97,7 @@ if is_torch_available():
                                 DistilBertForSequenceClassification, DistilBertForQuestionAnswering,
                                 DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP)
 
-    from .modeling_albert import (AlbertModel, AlbertForMaskedLM, ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP)
+    from .modeling_albert import (AlbertModel, AlbertForMaskedLM, load_tf_weights_in_albert, ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP)
 
     # Optimization
     from .optimization import (AdamW, ConstantLRSchedule, WarmupConstantSchedule, WarmupCosineSchedule,
