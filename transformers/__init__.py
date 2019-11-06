@@ -98,6 +98,7 @@ if is_torch_available():
                                 DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP)
 
     from .modeling_albert import (AlbertModel, AlbertForMaskedLM, AlbertForSequenceClassification,
+                                AlbertForQuestionAnswering,
                                 load_tf_weights_in_albert, ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP)
 
     # Optimization
