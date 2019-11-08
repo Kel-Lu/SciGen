@@ -32,7 +32,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BeamSearch(nn.Module):
+class BeamSearch(object):
     def __init__(
         self,
         model,
