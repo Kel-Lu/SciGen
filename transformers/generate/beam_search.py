@@ -122,7 +122,7 @@ class BeamSearch(object):
         self._step = 0
         self.is_done = False
 
-    def forward(self, encoder_input_ids, **model_kwargs):
+    def __call__(self, encoder_input_ids, **model_kwargs):
         """ Generate a sequence using Beam Search. """
         # keyword arguments come in 3 flavors: encoder-specific (prefixed by
         # `encoder_`), decoder-specific (prefixed by `decoder_`) and those
