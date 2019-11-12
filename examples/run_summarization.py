@@ -29,6 +29,11 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    from tensorboardX import SummaryWriter
+
 from transformers import (
     AutoTokenizer,
     BertForMaskedLM,
@@ -164,6 +169,8 @@ def train(args, model, tokenizer):
     """ Fine-tune the pretrained model on the corpus. """
     set_seed(args)
 
+    tb_writer = SummaryWriter()
+
     # Load the data
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_dataset = load_and_cache_examples(args, tokenizer)
@@ -211,7 +218,7 @@ def train(args, model, tokenizer):
     train_iterator = trange(args.num_train_epochs, desc="Epoch", disable=True)
 
     global_step = 0
-    tr_loss = 0.0
+    tr_loss, logging_loss = 0.0, 0.0
     for _ in train_iterator:
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=True)
         for step, batch in enumerate(epoch_iterator):
@@ -251,6 +258,16 @@ def train(args, model, tokenizer):
                 model.zero_grad()
                 global_step += 1
 
+                if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    encoder_lr = optimizer.lr["encoder"]
+                    decoder_lr = optimizer.lr["decoder"]
+                    tb_writer.add_scalar("learning_rate_encoder", encoder_lr, global_step)
+                    tb_writer.add_scalar("learning_rate_decoder", decoder_lr, global_step)
+                    tb_writer.add_scalar(
+                        "loss", (tr_loss - logging_loss) / args.logging_steps, global_step
+                    )
+                    logging_loss = tr_loss
+
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
@@ -258,6 +275,8 @@ def train(args, model, tokenizer):
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
+
+    tb_writer.close()
 
     return global_step, tr_loss / global_step
 
@@ -416,6 +435,9 @@ def main():
     )
     parser.add_argument(
         "--to_cpu", default=False, type=bool, help="Whether to force training on CPU."
+    )
+    parser.add_argument(
+        "--logging_steps", type=int, default=50, help="Log every X updates steps."
     )
     parser.add_argument(
         "--num_train_epochs",
