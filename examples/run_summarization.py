@@ -231,15 +231,11 @@ def train(args, model, tokenizer):
     global_step = 0
     tr_loss, logging_loss = 0.0, 0.0
     train_iterator = trange(
-        args.num_train_epochs,
-        desc="Epoch",
-        disable=not args.is_monitoring_process,
+        args.num_train_epochs, desc="Epoch", disable=not args.is_monitoring_process
     )
     for _ in train_iterator:
         epoch_iterator = tqdm(
-            train_dataloader,
-            desc="Iteration",
-            disable=not args.is_monitoring_process,
+            train_dataloader, desc="Iteration", disable=not args.is_monitoring_process
         )
         for step, batch in enumerate(epoch_iterator):
             source, target, encoder_token_type_ids, encoder_mask, decoder_mask, lm_labels = (
@@ -277,7 +273,11 @@ def train(args, model, tokenizer):
                 model.zero_grad()
                 global_step += 1
 
-                if args.is_monitoring_process and args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                if (
+                    args.is_monitoring_process
+                    and args.logging_steps > 0
+                    and global_step % args.logging_steps == 0
+                ):
                     learning_rate_encoder = optimizer.lr["encoder"]
                     learning_rate_decoder = optimizer.lr["decoder"]
                     tb_writer.add_scalar(
@@ -287,10 +287,17 @@ def train(args, model, tokenizer):
                         "learning_rate_decoder", learning_rate_decoder, global_step
                     )
                     tb_writer.add_scalar(
-                        "loss",
-                        (tr_loss - logging_loss) / args.logging_steps,
-                        global_step,
+                        "loss", (tr_loss - logging_loss) / args.logging_steps, global_step
                     )
+                    for idx in range(args.n_gpu):
+                        tb_writer.add_scalars(
+                            "memory_gpu_{}".format(idx),
+                            {
+                                "cached": torch.cuda.memory_cached(idx) / 1e9,  # bytes to Gb
+                                "allocated": torch.cuda.memory_cached(idx) / 1e9,
+                            },
+                            global_step,
+                        )
 
                     logging_loss = tr_loss
 
