@@ -169,7 +169,8 @@ def train(args, model, tokenizer):
     """ Fine-tune the pretrained model on the corpus. """
     set_seed(args)
 
-    tb_writer = SummaryWriter()
+    if args.is_monitoring_process:
+        tb_writer = SummaryWriter()
 
     # Load the data
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
@@ -197,9 +198,21 @@ def train(args, model, tokenizer):
         )
 
     # Prepare the optimizer
-    lr = {"encoder": 0.002, "decoder": 0.2}
+    learning_rates = {"encoder": 0.002, "decoder": 0.2}
     warmup_steps = {"encoder": 20000, "decoder": 10000}
-    optimizer = BertSumOptimizer(model, lr, warmup_steps)
+    optimizer = BertSumOptimizer(model, learning_rates, warmup_steps)
+
+    # Handle multi-gpu and distributed training
+    if args.n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+    elif args.is_distributed:
+        model = torch.nn.parallel.DistributedDataParallel(
+            model,
+            device_ids=[args.local_rank],
+            output_device=args.local_rank,
+            find_unused_parameters=True,
+        )
+    model.zero_grad()
 
     # Train
     logger.info("***** Running training *****")
@@ -208,19 +221,26 @@ def train(args, model, tokenizer):
     logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
     logger.info(
         "  Total train batch size (w. parallel, distributed & accumulation) = %d",
-        args.train_batch_size * args.gradient_accumulation_steps
-        # * (torch.distributed.get_world_size() if args.local_rank != -1 else 1),
+        args.train_batch_size
+        * args.gradient_accumulation_steps
+        * (torch.distributed.get_world_size() if args.is_distributed else 1),
     )
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
 
-    model.zero_grad()
-    train_iterator = trange(args.num_train_epochs, desc="Epoch", disable=True)
-
     global_step = 0
     tr_loss, logging_loss = 0.0, 0.0
+    train_iterator = trange(
+        args.num_train_epochs,
+        desc="Epoch",
+        disable=not args.is_monitoring_process,
+    )
     for _ in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=True)
+        epoch_iterator = tqdm(
+            train_dataloader,
+            desc="Iteration",
+            disable=not args.is_monitoring_process,
+        )
         for step, batch in enumerate(epoch_iterator):
             source, target, encoder_token_type_ids, encoder_mask, decoder_mask, lm_labels = (
                 batch
@@ -242,10 +262,10 @@ def train(args, model, tokenizer):
                 decoder_attention_mask=decoder_mask,
                 decoder_lm_labels=lm_labels,
             )
-
             loss = outputs[0]
-            logger.info("Current loss: {:.2f}".format(loss.item()))
 
+            if args.n_gpu > 1:
+                loss = loss.mean()
             if args.gradient_accumulation_steps > 1:
                 loss /= args.gradient_accumulation_steps
 
@@ -253,19 +273,25 @@ def train(args, model, tokenizer):
 
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
                 optimizer.step()
                 model.zero_grad()
                 global_step += 1
 
-                if args.logging_steps > 0 and global_step % args.logging_steps == 0:
-                    encoder_lr = optimizer.lr["encoder"]
-                    decoder_lr = optimizer.lr["decoder"]
-                    tb_writer.add_scalar("learning_rate_encoder", encoder_lr, global_step)
-                    tb_writer.add_scalar("learning_rate_decoder", decoder_lr, global_step)
+                if args.is_monitoring_process and args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    learning_rate_encoder = optimizer.lr["encoder"]
+                    learning_rate_decoder = optimizer.lr["decoder"]
                     tb_writer.add_scalar(
-                        "loss", (tr_loss - logging_loss) / args.logging_steps, global_step
+                        "learning_rate_encoder", learning_rate_encoder, global_step
                     )
+                    tb_writer.add_scalar(
+                        "learning_rate_decoder", learning_rate_decoder, global_step
+                    )
+                    tb_writer.add_scalar(
+                        "loss",
+                        (tr_loss - logging_loss) / args.logging_steps,
+                        global_step,
+                    )
+
                     logging_loss = tr_loss
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -276,7 +302,8 @@ def train(args, model, tokenizer):
             train_iterator.close()
             break
 
-    tb_writer.close()
+    if args.is_monitoring_process:
+        tb_writer.close()
 
     return global_step, tr_loss / global_step
 
@@ -358,6 +385,9 @@ def evaluate(args, model, tokenizer, path_to_summaries):
 
 
 def save_model_checkpoints(args, model, tokenizer):
+    if args.is_distributed and torch.distributed.get_rank() != 0:
+        return
+
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
@@ -365,9 +395,7 @@ def save_model_checkpoints(args, model, tokenizer):
 
     # Save a trained model, configuration and tokenizer using `save_pretrained()`.
     # They can then be reloaded using `from_pretrained()`
-    model_to_save = (
-        model.module if hasattr(model, "module") else model
-    )  # Take care of distributed/parallel training
+    model_to_save = model.module if hasattr(model, "module") else model
     model_to_save.save_pretrained(args.output_dir, model_type="bert")
     tokenizer.save_pretrained(args.output_dir)
     torch.save(args, os.path.join(args.output_dir, "training_arguments.bin"))
@@ -425,9 +453,6 @@ def main():
         help="The decoder architecture to be fine-tuned.",
     )
     parser.add_argument(
-        "--max_grad_norm", default=1.0, type=float, help="Max gradient norm."
-    )
-    parser.add_argument(
         "--max_steps",
         default=-1,
         type=int,
@@ -457,6 +482,12 @@ def main():
         type=int,
         help="Batch size per GPU/CPU for evaluation.",
     )
+    parser.add_argument(
+        "--local_rank",
+        type=int,
+        default=-1,
+        help="Argument passed by Pytorch's utility to manage distributed computation.",
+    )
     parser.add_argument("--seed", default=42, type=int)
     args = parser.parse_args()
 
@@ -472,16 +503,29 @@ def main():
             )
         )
 
-    # Set up training device
-    if args.to_cpu or not torch.cuda.is_available():
+    # Set up the training device(s)
+    args.is_distributed = False if args.local_rank == -1 else True
+    args.is_first_process = True if args.local_rank == 0 else False
+    args.is_monitoring_process = not args.is_distributed or args.is_first_process
+    if args.to_cpu or not torch.cuda.is_available:
         args.device = torch.device("cpu")
         args.n_gpu = 0
-    else:
+    elif not args.is_distributed:
         args.device = torch.device("cuda")
         args.n_gpu = torch.cuda.device_count()
+    else:
+        torch.cuda.set_device(args.local_rank)
+        args.device = torch.device("cuda", args.local_rank)
+        torch.distributed.init_process_group(backend="nccl")
+        args.n_gpu = 1
 
     # Load pretrained model. The decoder's weights are randomly initialized.
     # The dropout values for the decoder were taken from Liu & Lapata's repository
+    # If we are working in a distributed environment we ensure that only the first process loads the model & tokenizer.
+    # Using context managers to handle the barriers would be cleaner.
+    if args.is_distributed and not args.is_first_process:
+        torch.distributed.barrier()
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, do_lower_case=True)
     config = BertConfig.from_pretrained(args.model_name_or_path)
     config.hidden_dropout_prob = 0.2
@@ -494,6 +538,11 @@ def main():
     # Following Lapata & Liu we share the encoder's word embedding weights with the decoder
     decoder_embeddings = copy.deepcopy(model.encoder.get_input_embeddings())
     model.decoder.set_input_embeddings(decoder_embeddings)
+
+    if args.is_first_process:
+        torch.distributed.barrier()
+
+    model.to(args.device)
 
     # Setup logging
     logging.basicConfig(
@@ -512,8 +561,7 @@ def main():
 
     logger.info("Training/evaluation parameters %s", args)
 
-    # Train the model
-    model.to(args.device)
+    # Train and save the model
     if args.do_train:
         try:
             global_step, tr_loss = train(args, model, tokenizer)
@@ -529,7 +577,7 @@ def main():
         save_model_checkpoints(args, model, tokenizer)
 
     # Evaluate the model
-    if args.do_evaluate:
+    if args.do_evaluate and (not args.is_distributed or args.is_first_process):
         checkpoints = [args.output_dir]
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
