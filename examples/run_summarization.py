@@ -260,6 +260,9 @@ def train(args, model, tokenizer):
             )
             loss = outputs[0]
 
+            del source, target, encoder_token_type_ids, encoder_mask, decoder_mask, lm_labels
+            torch.cuda.empty_cache()
+
             if args.n_gpu > 1:
                 loss = loss.mean()
             if args.gradient_accumulation_steps > 1:
@@ -293,7 +296,8 @@ def train(args, model, tokenizer):
                         tb_writer.add_scalars(
                             "memory_gpu_{}".format(idx),
                             {
-                                "cached": torch.cuda.memory_cached(idx) / 1e9,  # bytes to Gb
+                                "cached": torch.cuda.memory_cached(idx)
+                                / 1e9,  # bytes to Gb
                                 "allocated": torch.cuda.memory_cached(idx) / 1e9,
                             },
                             global_step,
@@ -449,7 +453,7 @@ def main():
     )
     parser.add_argument(
         "--model_name_or_path",
-        default="bert-base-cased",
+        default="bert-base-uncased",
         type=str,
         help="The model checkpoint to initialize the encoder and decoder's weights with.",
     )
@@ -534,10 +538,18 @@ def main():
         torch.distributed.barrier()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, do_lower_case=True)
-    config = BertConfig.from_pretrained(args.model_name_or_path)
-    config.hidden_dropout_prob = 0.2
-    config.attention_probs_dropout_prob = 0.2
-    decoder_model = BertForMaskedLM(config)
+
+    decoder_config = BertConfig.from_pretrained(args.model_name_or_path)
+    decoder_config = BertConfig(
+        hidden_size=768,
+        num_hidden_layers=6,
+        num_attention_heads=8,
+        intermediate_size=2048,
+        hidden_dropout_prob=0.2,
+        attention_probs_dropout_prob=0.2,
+    )
+    decoder_model = BertForMaskedLM(decoder_config)
+
     model = Model2Model.from_pretrained(
         args.model_name_or_path, decoder_model=decoder_model
     )
