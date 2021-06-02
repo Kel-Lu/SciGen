@@ -9,9 +9,9 @@ SciGen is a generation model trained on scientific articles based on GPT2 and th
 
 # Running our Scripts
 
-##Training
+## Training
 `python ft.py --output_dir=$OUTPUT_DIR  --model_type=gpt2 --model_name_or_path=$MODEL_PATH  --do_train --train_data_file=$TRAIN_FILE --max_eval_steps 10000 --save_steps=5000`
 
 
-##Generation
+## Generation
 `python val_generation.py  --model_type=gpt2  --length 50 --stop_token='. ' --tokenizer_path=$TOKENPATH --prompt=$TEST_FILE  --output_file $OUTPUT_FILE --model_name_or_path=$MODEL_PATH`
