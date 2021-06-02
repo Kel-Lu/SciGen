@@ -15,7 +15,6 @@ SciGen is a generation model trained on scientific articles based on GPT2 and th
 Please follow the steps under `data processing`.
 
 ## Training
-```python ft.py --output_dir=$OUTPUT_DIR  --model_type=gpt2 --model_name_or_path=$MODEL_PATH  --do_train --train_data_file=$TRAIN_FILE --max_eval_steps 10000 --save_steps=5000`
 ```python ft.py --model_type=gpt2  --do_eval --max_eval_steps 100000 --num_train_epochs=1 --save_steps=5000 --eval_all_checkpoints  --tokenizer_path=$MODEL_PATH --output_dir=$OUTPUT_PATH --eval_data_file=$EVAL_FILE --model_name_or_path=$MODEL_PATH```
 
 
