@@ -1,0 +1,15 @@
+Make_dicts and make_new_dicts should be combined at some time in the future.
+1. `make_dicts.py' takes in a manifest file (with relative directories) and compiles them into a python pickled dict (full_dict.pkl).
+2. `make_new_dicts.py' takes an updates the older dict (full_dict.pkl) with a newer dataset that Kyle gave into `new_dict.pkl'.  TODO: Combine these two steps
+3. `make_splits_from_dicts.py' creates the train, dev, and test splits.
+4. `make_datafiles_from_dicts' processes these splits into the context that they're supposed to give. Needs both the splits and pkls.
+
+
+
+Sample order of input (for abs_intro):
+
+python make_dicts manifest.txt
+python make_new_dicts.py dict.pkl sent_manifest.txt full_dict.pkl
+python make_splits_from_dicts.py new_dict.pkl test_splits/corpus.txt check_samples/sampled_train.txt --seed 100 python make_datafiles_from_dicts.py full_dict.pkl check_samples/sampled_train.txt sci_input_data/abs_intro/train.txt -c intro -s abs
+python make_datafiles_from_dicts.py full_dict.pkl check_samples/sampled_dev.txt sci_input_data/abs_intro/val.txt -c intro -s abs
+python make_datafiles_from_dicts.py full_dict.pkl check_samples/sampled_test.txt sci_input_data/abs_intro/test.txt -c intro -s abs
