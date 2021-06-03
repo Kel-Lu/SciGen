@@ -6,7 +6,9 @@ SciGen is a generation model trained on scientific articles based on GPT2 and th
 
 [`SciGEN`](https://drive.google.com/file/d/1WQEd8skg7JzJzYLki-04dglkfFC_EN2P/view?usp=sharing)
 [`SciGPT2`](https://drive.google.com/file/d/1AoNYnhvI6tensnrpQVc09KL1NWJ5MvFU/view?usp=sharing)
+[`SciGPT2_Clean`](https://drive.google.com/file/d/10AnTcF7c-yQwQAl4QAYy_UfSeiJ-r5HU/view?usp=sharing)
 
+We note that `SciGPT2_Clean` was trained on a reduced set of papers to prevent leakage in our experiments and is released for reproducibility. In general, we recommend using the full veresion of `SciGPT2`.
 
 # Running our Scripts
 
