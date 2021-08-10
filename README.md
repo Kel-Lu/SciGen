@@ -1,6 +1,6 @@
 # SciGen
 
-SciGen is a generation model trained on scientific articles based on GPT2 and the code is based heavily on HuggingFace's GPT2 transformers examples. For more information see our paper [Explaining Relationships Between Scientific Documents]()
+SciGen is a generation model trained on scientific articles based on GPT2 and the code is based heavily on HuggingFace's GPT2 transformers examples. For more information see our paper [Explaining Relationships Between Scientific Documents](https://aclanthology.org/2021.acl-long.166/)
 
 # Downloading Trained Models
 
